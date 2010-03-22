@@ -23,7 +23,7 @@ Usage
 
 with:
 
-b - 1 to exit the program when a warning occures.
-x - number of lines to print before and after the line that produced the error
-y - number of lines to print before and after the line that produced the warning
-z - depth for stacktrace (default is 3)
+* b - 1 to exit the program when a warning occures.
+* x - number of lines to print before and after the line that produced the error
+* y - number of lines to print before and after the line that produced the warning
+* z - depth for stacktrace (default is 3)
