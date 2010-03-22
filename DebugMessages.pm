@@ -22,6 +22,14 @@ use strict;
 use warnings;
 
 ##
+# Field seperator for list-to-string conversation. 
+
+# print out your lists with
+#
+#  print "[@myarray]\n";
+$" = '] [';
+
+##
 # Is called when this package is used somewhere. Overwrites warn and die functions
 sub import {
     my ( $class, %args ) = @_;
