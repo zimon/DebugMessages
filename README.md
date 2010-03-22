@@ -18,8 +18,8 @@ Features
 Usage
 ------
 
-use lib "path/to/module";
-use DebugMessages fatal => x, warnings => y, level => z, exit_on_warning => b;
+    use lib "path/to/module";
+    use DebugMessages fatal => x, warnings => y, level => z, exit_on_warning => b;
 
 with:
 * b - 1 to exit the program when a warning occures.
