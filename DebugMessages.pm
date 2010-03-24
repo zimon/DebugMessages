@@ -6,20 +6,22 @@
 # Usage:
 # Import this file with
 # use lib "path/to/my/modules"
-# use DebugMessages fatal => x, warnings => y, level => z, exit_on_warning => b;
+# use DebugMessages errors => x, warnings => y, level => z, exit_on_warning => b, verbose => v;
 #
 # where "path/to/my/modules" is replaced with the path to this file.
 #
 # You can use the following variables:
 # b - 1 to exit the program when a warning occures.
-# x - number of lines to print before and after the line that produced the error
-# y - number of lines to print before and after the line that produced the warning
-# z - depth for stacktrace (default is 3)
+# v - 1 to print compact Dumpvalues of Lists and Hashes. 2 to print verbose Dumpvalues.
+# x - number of lines to print before and after the line that produced the error. -1 disables DebugMessages for errors.
+# y - number of lines to print before and after the line that produced the warning. -1 disables DebugMessages for warnings.
+# z - depth for stacktrace (default is 3).
 
 package DebugMessages;
 
 use strict;
 use warnings;
+use Dumpvalue;
 
 ##
 # Field seperator for list-to-string conversation. 
@@ -34,12 +36,19 @@ $" = '] [';
 sub import {
     my ( $class, %args ) = @_;
     my $level = $args{level};
+    my $dump = $args{verbose};
+    my $warningsize = $args{warnings};
+    my $errorsize = $args{errors};
+    $dump = 0 unless defined $args{verbose};
     my $exit_on_warning = $args{exit_on_warning};
     $level = 3 unless defined $level;
     $exit_on_warning = 0 unless defined $exit_on_warning;
+    $warningsize = 3 unless defined $warningsize;
+    $errorsize = 3 unless defined $errorsize;
+    
 
-    $SIG{__DIE__} = sub { DB::report( shift, $args{fatal}, $level ); exit; } if $args{fatal};
-    $SIG{__WARN__} = sub { DB::report( shift, $args{warnings}, $level ); exit if $exit_on_warning; } if $args{warnings};
+    $SIG{__DIE__} = sub { DB::report( shift, $errorsize, $level, $dump ); exit; } if $args{errors} && $args{errors} >= 0;
+    $SIG{__WARN__} = sub { DB::report( shift, $warningsize, $level, $dump); exit if $exit_on_warning; } if $args{warnings} && $args{warnings} >= 0;
 }
 
 package DB;
@@ -52,7 +61,7 @@ package DB;
 # $size - number of lines to print before and after the error line
 # $level - depth of the stacktrace
 sub report {
-    my ( $message, $size, $level ) = @_;
+    my ( $message, $size, $level ,$dump) = @_;
     $level ||= 1;
     my @callValueList    = ();
     my @callArgumentList = ();
@@ -64,7 +73,7 @@ sub report {
     }
     my %calls = ( CALLVALUES => \@callValueList, CALLARGUMENTS => \@callArgumentList );
 
-    print STDERR showSource( $size, %calls );
+    showSource( $size, $dump, %calls );
 }
 
 ##
@@ -78,11 +87,15 @@ sub report {
 # string with stacktrace
 sub showSource {
     my $size  = shift;
+    my $dump = shift;
     my %calls = @_;
 
     my @text;
     my @callValueList    = @{ $calls{CALLVALUES} };
     my @callArgumentList = @{ $calls{CALLARGUMENTS} };
+    my $dumper = new Dumpvalue;
+    $dumper->compactDump(1) if $dump == 1;
+    #$dumper->veryCompact(1);
     my $tab              = "";
     my $i                = 0;
     local $.;
@@ -94,28 +107,36 @@ sub showSource {
             my $fh;
 
             # Open source file or return all informations till now
-            return "\n$subroutine(" . join( ",", @arguments ) . 
+            print STDERR "\n$subroutine(" . join( ",", @arguments ) . 
               ") at line $line in file $fileName (package $package):\nCan not print lines because opening file $fileName is not possible.\n\n" 
-              unless open( $fh, $fileName );
+              and return unless open( $fh, $fileName );
 
             my $start = $line - $size;
             my $end   = $line + $size;
+            if($dump and $i > 0){
+                print STDERR "\n-------------------------------------\n";
+                print STDERR "Verbose output of parameters for call of $subroutine\n";
+                foreach my $arg (@arguments) {
+                    $dumper->dumpValue($arg);
+                }
+                print STDERR "-------------------------------------\n";
+            }
 
-            push( @text, "\nError Message: " . join( ",", @arguments ) . "\n" ) if $i == 0;
+            print STDERR "\nError: " . join( ",", @arguments ) . "\n" if $i == 0;
 
-            push( @text, "\n$tab $subroutine(" . join( ",", @arguments ) . ") at line $line in file $fileName (package $package):\n" ) if $i > 0;
+            print STDERR "\n$tab $subroutine(" . join( ",", @arguments ) . ") called at line $line in file $fileName (package $package):\n" if $i > 0;
 
             while (<$fh>) {
                 next unless $. >= $start;
                 last if $. > $end;
                 my $highlight = $. == $line ? '* ' : '  ';
-                push( @text, sprintf( "%s %s%04d: %s", $tab, $highlight, $., $_ ) );
+                printf( "%s %s%04d: %s", $tab, $highlight, $., $_ );
             }
             $tab .= "  ";
         }
         $i++;
     } while ( $i < $#callValueList );
-    return join( '', @text, "\n\n" );
+    print STDERR "\n\n";
 }
 
 1;
