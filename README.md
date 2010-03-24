@@ -35,7 +35,8 @@ List Output
 -----------
 
 Print your list @list = ("Hello World","How are you") with
-print "[@list]\n";
+
+    print "[@list]\n";
 
 then you get 
     [Hello World] [How are you]
